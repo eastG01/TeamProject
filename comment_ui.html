@@ -602,6 +602,13 @@
       // API 연결 실패 시 시뮬레이션 모드
       result = simulateFilter(text);
     }
+    if (result.result === "차단된 유저" || (result.action === "차단" && result.method === "유저차단")) {
+        bar.classList.remove('show');
+        alert("귀하는 현재 차단된 상태입니다. 댓글을 작성할 수 없습니다.");
+        input.value = '';
+        btn.disabled = false;
+        return;
+    }
 
     // 메서드에 따라 스텝 표시
     if (result.method === '욕설사전') {
