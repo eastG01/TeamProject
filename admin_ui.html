@@ -83,6 +83,7 @@
   <div class="tab" onclick="switchTab('whitelist')">화이트리스트 <span class="count-badge" id="wl-count">0</span></div>
   <div class="tab" onclick="switchTab('penalties')">유저 제재 <span class="count-badge" id="pe-count">0</span></div>
   <div class="tab" onclick="switchTab('users')">회원 관리 <span class="count-badge" id="us-count">0</span></div>
+  <div class="tab" onclick="switchTab('logs')">댓글 로그 <span class="count-badge" id="log-count">0</span></div>
 </div>
 
 <div class="content">
@@ -175,7 +176,21 @@
       <div class="empty" id="us-empty" style="display:none">가입된 회원이 없습니다.</div>
     </div>
   </div>
-
+  <div class="panel" id="panel-logs">
+    <div class="section-header">
+      <span class="section-title">댓글 로그 관리</span>
+      <button class="btn btn-ghost" onclick="loadLogs()">새로고침</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>유저</th><th>댓글 내용</th><th>판정</th><th>방법</th><th>날짜</th><th>관리</th></tr>
+        </thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+      <div class="empty" id="log-empty" style="display:none">로그가 없습니다.</div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -189,7 +204,7 @@ const _cache = { bw: {}, wl: {}, pe: {} };
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['badwords','whitelist','penalties'][i] === name);
+    t.classList.toggle('active', ['badwords','whitelist','penalties','users','logs'][i] === name);
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -421,7 +436,33 @@ async function deleteUser(userId) {
   showToast(data.message);
   loadUsers();
 }
+async function loadLogs() {
+  const res = await fetch(`${API}/logs`).catch(() => null);
+  if (!res) { showToast('서버 연결 실패', 'error'); return; }
+  const data = await res.json();
+  document.getElementById('log-count').textContent = data.length;
+  document.getElementById('log-empty').style.display = data.length ? 'none' : 'block';
+  document.getElementById('log-tbody').innerHTML = data.map(r => `
+    <tr>
+      <td><span style="font-family:'JetBrains Mono',monospace;color:var(--sub)">#${r.id}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace">${r.user_id}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.original_text}</td>
+      <td>${r.result === '악플' ? '<span class="badge badge-red">악플</span>' : '<span class="badge badge-green">정상</span>'}</td>
+      <td><span style="color:var(--sub);font-size:12px">${r.detect_method}</span></td>
+      <td><span style="font-size:12px;color:var(--sub)">${(r.created_at||'').slice(0,16)}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLog(${r.id})">삭제</button></td>
+    </tr>
+  `).join('');
+}
 
+async function deleteLog(id) {
+  if (!confirm(`댓글 #${id} 를 삭제할까요?`)) return;
+  const res  = await fetch(`${API}/logs/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail, 'error'); return; }
+  showToast(data.message);
+  loadLogs();
+}
 // 초기 로드
 loadBadwords();
 </script>
