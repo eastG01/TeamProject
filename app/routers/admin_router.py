@@ -151,3 +151,33 @@ def reset_penalty(user_id: str):
         return {"message": f"user_id={user_id} 제재 초기화 완료"}
     finally:
         conn.close()
+
+# 회원 관리
+@router.get("/users", summary="가입 회원 전체 조회")
+def get_users():
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT u.user_id, u.created_at,
+                   COALESCE(p.warning_count, 0) AS warning_count,
+                   COALESCE(p.status, '정상')   AS status
+            FROM users u
+            LEFT JOIN user_penalties p ON u.user_id = p.user_id
+            ORDER BY u.created_at DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+@router.delete("/users/{user_id}", summary="회원 삭제")
+def delete_user(user_id: str):
+    conn = get_conn()
+    try:
+        if not conn.execute("SELECT id FROM users WHERE user_id=?", (user_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="해당 유저를 찾을 수 없습니다.")
+        conn.execute("DELETE FROM users WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM user_penalties WHERE user_id=?", (user_id,))
+        conn.commit()
+        return {"message": f"'{user_id}' 회원 삭제 완료"}
+    finally:
+        conn.close()

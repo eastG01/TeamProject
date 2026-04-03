@@ -70,6 +70,15 @@ def init_db():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at    TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+
     sample_badwords = [
         ("시발",  json.dumps(["si발","ㅅㅂ","시*발","씨발"], ensure_ascii=False), 3),
         ("병신",  json.dumps(["ㅂㅅ","byung신","병*신"],      ensure_ascii=False), 3),
@@ -89,7 +98,7 @@ def init_db():
     conn.commit()
     conn.close()
     print("DB 생성 완료!")
-    print("테이블 생성: badwords / filter_logs / user_penalties / reports / whitelist")
+    print("테이블 생성: badwords / filter_logs / user_penalties / reports / whitelist / users")
 
 if __name__ == "__main__":
     init_db()
