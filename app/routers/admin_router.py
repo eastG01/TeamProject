@@ -145,8 +145,7 @@ def reset_penalty(user_id: str):
     try:
         if not conn.execute("SELECT id FROM user_penalties WHERE user_id=?", (user_id,)).fetchone():
             raise HTTPException(status_code=404, detail="해당 유저를 찾을 수 없습니다.")
-        conn.execute("UPDATE user_penalties SET warning_count=0, status='정상', reason=NULL, updated_at=? WHERE user_id=?",
-            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id))
+        conn.execute("DELETE FROM user_penalties WHERE user_id=?", (user_id,))
         conn.commit()
         return {"message": f"user_id={user_id} 제재 초기화 완료"}
     finally:
