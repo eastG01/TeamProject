@@ -180,3 +180,28 @@ def delete_user(user_id: str):
         return {"message": f"'{user_id}' 회원 삭제 완료"}
     finally:
         conn.close()
+@router.get("/logs", summary="필터링 로그 전체 조회")
+def get_logs():
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT id, user_id, original_text, detect_method, 
+                   result, action, created_at 
+            FROM filter_logs 
+            ORDER BY created_at DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+@router.delete("/logs/{log_id}", summary="댓글 로그 삭제")
+def delete_log(log_id: int):
+    conn = get_conn()
+    try:
+        if not conn.execute("SELECT id FROM filter_logs WHERE id=?", (log_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="해당 댓글을 찾을 수 없습니다.")
+        conn.execute("DELETE FROM filter_logs WHERE id=?", (log_id,))
+        conn.commit()
+        return {"message": f"댓글 id={log_id} 삭제 완료"}
+    finally:
+        conn.close()
