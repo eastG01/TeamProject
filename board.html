@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CommGuard 게시판</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d27;
+    --surface2: #22263a;
+    --border:   #2e3350;
+    --accent:   #4f8ef7;
+    --accent2:  #7c6af7;
+    --danger:   #f74f6a;
+    --success:  #4ff7a0;
+    --text:     #e8eaf6;
+    --text-sub: #7b82a8;
+  }
+  body.light {
+    --bg:       #f4f6fb;
+    --surface:  #ffffff;
+    --surface2: #eef0f7;
+    --border:   #d0d4e8;
+    --text:     #1a1d27;
+    --text-sub: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; transition: background 0.2s, color 0.2s; }
+
+  /* 헤더 */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo { width: 26px; height: 26px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .header-title { font-size: 15px; font-weight: 700; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .header-user { font-size: 12px; color: var(--text-sub); font-family: 'JetBrains Mono', monospace; }
+  .btn { font-size: 12px; font-family: 'Noto Sans KR', sans-serif; font-weight: 600; padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-theme { background: none; border: 1px solid var(--border); color: var(--text-sub); font-size: 14px; width: 32px; height: 32px; padding: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+  /* 컨테이너 */
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 20px; }
+
+  /* 게시판 헤더 */
+  .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .board-title { font-size: 18px; font-weight: 700; }
+  .board-count { font-size: 13px; color: var(--text-sub); margin-left: 8px; font-family: 'JetBrains Mono', monospace; }
+
+  /* 게시글 목록 테이블 */
+  .board-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .board-table th { padding: 12px 16px; text-align: left; font-size: 12px; color: var(--text-sub); font-weight: 600; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .board-table th.col-num   { width: 60px; text-align: center; }
+  .board-table th.col-title { }
+  .board-table th.col-author{ width: 100px; text-align: center; }
+  .board-table th.col-date  { width: 110px; text-align: center; }
+  .board-table th.col-cmt   { width: 60px; text-align: center; }
+
+  .board-table td { padding: 13px 16px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .board-table tr:last-child td { border-bottom: none; }
+  .board-table tr:hover td { background: var(--surface2); cursor: pointer; }
+  .td-num   { text-align: center; color: var(--text-sub); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .td-title { font-weight: 500; }
+  .td-title .cmt-badge { font-size: 12px; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-left: 6px; }
+  .td-author { text-align: center; font-size: 13px; color: var(--text-sub); }
+  .td-date   { text-align: center; font-size: 12px; color: var(--text-sub); font-family: 'JetBrains Mono', monospace; }
+  .td-cmt    { text-align: center; font-size: 13px; color: var(--text-sub); }
+
+  .empty-row td { text-align: center; padding: 60px; color: var(--text-sub); font-size: 14px; }
+
+  /* 페이지네이션 */
+  .pagination { display: flex; justify-content: center; gap: 6px; margin-top: 24px; }
+  .page-btn { width: 34px; height: 34px; border: 1px solid var(--border); background: var(--surface); color: var(--text-sub); border-radius: 8px; cursor: pointer; font-size: 13px; font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s; }
+  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* 로그인 모달 */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 360px; box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+  .modal-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; padding: 10px 12px; outline: none; transition: border-color 0.2s; }
+  .modal-field input:focus { border-color: var(--accent); }
+  .modal-submit { width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 600; padding: 11px; margin-top: 8px; transition: opacity 0.2s; }
+  .modal-submit:hover { opacity: 0.88; }
+  .modal-error { font-size: 12px; color: var(--danger); margin-top: 10px; min-height: 18px; text-align: center; }
+  .modal-switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-sub); }
+  .modal-switch a { color: var(--accent); cursor: pointer; font-weight: 600; }
+  .modal-close { float: right; background: none; border: none; color: var(--text-sub); font-size: 18px; cursor: pointer; }
+
+  /* 게시글 작성 모달 */
+  .write-modal { width: 600px; }
+  .write-modal textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; padding: 10px 12px; outline: none; resize: vertical; min-height: 140px; transition: border-color 0.2s; }
+  .write-modal textarea:focus { border-color: var(--accent); }
+
+  /* 토스트 */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 13px; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: transform 0.3s; z-index: 1000; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<!-- 로그인 모달 -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAuthModal()">✕</button>
+    <div class="modal-title" id="auth-title">로그인</div>
+    <div class="modal-field"><label>아이디</label><input type="text" id="auth-userid" placeholder="아이디 입력" autocomplete="username"></div>
+    <div class="modal-field"><label>비밀번호</label><input type="password" id="auth-password" placeholder="비밀번호 입력"></div>
+    <button class="modal-submit" onclick="handleAuth()" id="auth-submit">로그인</button>
+    <div class="modal-error" id="auth-error"></div>
+    <div class="modal-switch" id="auth-switch">계정이 없으신가요? <a onclick="switchAuthMode()">회원가입</a></div>
+  </div>
+</div>
+
+<!-- 게시글 작성 모달 -->
+<div class="modal-overlay" id="write-modal">
+  <div class="modal write-modal">
+    <button class="modal-close" onclick="closeWriteModal()">✕</button>
+    <div class="modal-title">게시글 작성</div>
+    <div class="modal-field"><label>제목</label><input type="text" id="post-title" placeholder="제목을 입력하세요" maxlength="100"></div>
+    <div class="modal-field"><label>내용</label><textarea id="post-content" placeholder="내용을 입력하세요" maxlength="5000"></textarea></div>
+    <button class="modal-submit" onclick="submitPost()">등록</button>
+    <div class="modal-error" id="write-error"></div>
+  </div>
+</div>
+
+<!-- 헤더 -->
+<header class="header">
+  <div class="header-logo">🛡</div>
+  <span class="header-title">CommGuard</span>
+  <div class="header-right">
+    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
+    <span class="header-user" id="header-user"></span>
+    <button class="btn btn-primary" id="header-auth-btn" onclick="openAuthModal()">로그인</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="board-header">
+    <div>
+      <span class="board-title">자유게시판</span>
+      <span class="board-count" id="total-count">0개</span>
+    </div>
+    <button class="btn btn-primary" id="write-btn" onclick="openWriteModal()" style="display:none">✏ 글쓰기</button>
+  </div>
+
+  <table class="board-table">
+    <thead>
+      <tr>
+        <th class="col-num">번호</th>
+        <th class="col-title">제목</th>
+        <th class="col-author">작성자</th>
+        <th class="col-date">작성일</th>
+        <th class="col-cmt">댓글</th>
+      </tr>
+    </thead>
+    <tbody id="post-list">
+      <tr class="empty-row"><td colspan="5">게시글을 불러오는 중...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'http://127.0.0.1:8000';
+  const PAGE_SIZE = 15;
+  let USER_ID  = localStorage.getItem('user_id') || null;
+  let authMode = 'login';
+  let allPosts = [];
+  let currentPage = 1;
+
+  // 테마
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  if (savedTheme === 'light') document.body.classList.add('light');
+  document.getElementById('theme-btn').textContent = savedTheme === 'light' ? '🌞' : '🌙';
+
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    document.getElementById('theme-btn').textContent = isLight ? '🌞' : '🌙';
+  }
+
+  // 인증 초기화
+  function initAuth() {
+    if (USER_ID) {
+      document.getElementById('header-user').textContent = USER_ID;
+      const btn = document.getElementById('header-auth-btn');
+      btn.textContent = '로그아웃';
+      btn.className = 'btn btn-ghost';
+      btn.onclick = logout;
+      document.getElementById('write-btn').style.display = '';
+    } else {
+      document.getElementById('header-user').textContent = '';
+      const btn = document.getElementById('header-auth-btn');
+      btn.textContent = '로그인';
+      btn.className = 'btn btn-primary';
+      btn.onclick = openAuthModal;
+      document.getElementById('write-btn').style.display = 'none';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('user_id');
+    USER_ID = null;
+    initAuth();
+    showToast('로그아웃 되었습니다.');
+  }
+
+  // 인증 모달
+  function openAuthModal() {
+    authMode = 'login';
+    updateAuthUI();
+    document.getElementById('auth-userid').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('auth-modal').classList.add('show');
+    document.getElementById('auth-userid').focus();
+  }
+  function closeAuthModal() { document.getElementById('auth-modal').classList.remove('show'); }
+  function switchAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    updateAuthUI();
+    document.getElementById('auth-error').textContent = '';
+  }
+  function updateAuthUI() {
+    const isLogin = authMode === 'login';
+    document.getElementById('auth-title').textContent = isLogin ? '로그인' : '회원가입';
+    document.getElementById('auth-submit').textContent = isLogin ? '로그인' : '회원가입';
+    document.getElementById('auth-switch').innerHTML = isLogin
+      ? '계정이 없으신가요? <a onclick="switchAuthMode()">회원가입</a>'
+      : '이미 계정이 있으신가요? <a onclick="switchAuthMode()">로그인</a>';
+  }
+
+  async function handleAuth() {
+    const userId   = document.getElementById('auth-userid').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const errorEl  = document.getElementById('auth-error');
+    errorEl.textContent = '';
+    if (!userId || !password) { errorEl.textContent = '아이디와 비밀번호를 입력해주세요.'; return; }
+
+    const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+    try {
+      const res  = await fetch(API + endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, password}) });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.detail || '오류가 발생했습니다.'; return; }
+      USER_ID = data.user_id;
+      localStorage.setItem('user_id', USER_ID);
+      closeAuthModal();
+      initAuth();
+      showToast(authMode === 'register' ? '회원가입이 완료되었습니다!' : `${USER_ID}님 환영합니다!`);
+    } catch(e) { errorEl.textContent = '서버에 연결할 수 없습니다.'; }
+  }
+
+  // 게시글 작성 모달
+  function openWriteModal() {
+    if (!USER_ID) { openAuthModal(); return; }
+    document.getElementById('post-title').value = '';
+    document.getElementById('post-content').value = '';
+    document.getElementById('write-error').textContent = '';
+    document.getElementById('write-modal').classList.add('show');
+    document.getElementById('post-title').focus();
+  }
+  function closeWriteModal() { document.getElementById('write-modal').classList.remove('show'); }
+
+  async function submitPost() {
+    const title   = document.getElementById('post-title').value.trim();
+    const content = document.getElementById('post-content').value.trim();
+    const errorEl = document.getElementById('write-error');
+    errorEl.textContent = '';
+    if (!title)   { errorEl.textContent = '제목을 입력해주세요.'; return; }
+    if (!content) { errorEl.textContent = '내용을 입력해주세요.'; return; }
+
+    try {
+      const res  = await fetch(API + '/posts', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: USER_ID, title, content}) });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.detail || '오류가 발생했습니다.'; return; }
+      closeWriteModal();
+      showToast('게시글이 등록되었습니다.');
+      loadPosts();
+    } catch(e) { errorEl.textContent = '서버에 연결할 수 없습니다.'; }
+  }
+
+  // 게시글 목록 로드
+  async function loadPosts() {
+    try {
+      const res = await fetch(API + '/posts');
+      allPosts  = await res.json();
+      renderPosts();
+    } catch(e) {
+      document.getElementById('post-list').innerHTML = '<tr class="empty-row"><td colspan="5">서버에 연결할 수 없습니다.</td></tr>';
+    }
+  }
+
+  function renderPosts() {
+    const total = allPosts.length;
+    document.getElementById('total-count').textContent = `${total}개`;
+
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const slice = allPosts.slice(start, start + PAGE_SIZE);
+
+    const tbody = document.getElementById('post-list');
+    if (slice.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">아직 게시글이 없습니다. 첫 글을 작성해보세요!</td></tr>';
+    } else {
+      tbody.innerHTML = slice.map((p, i) => `
+        <tr onclick="goPost(${p.id})">
+          <td class="td-num">${total - start - i}</td>
+          <td class="td-title">${escHtml(p.title)}${p.comment_count > 0 ? `<span class="cmt-badge">[${p.comment_count}]</span>` : ''}</td>
+          <td class="td-author">${escHtml(p.user_id)}</td>
+          <td class="td-date">${formatDate(p.created_at)}</td>
+          <td class="td-cmt">${p.comment_count}</td>
+        </tr>
+      `).join('');
+    }
+
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages) {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+      html += `<button class="page-btn${i === currentPage ? ' active' : ''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    el.innerHTML = html;
+  }
+
+  function goPage(page) { currentPage = page; renderPosts(); window.scrollTo(0, 0); }
+  function goPost(id)   { location.href = `post.html?id=${id}`; }
+
+  function formatDate(str) {
+    if (!str) return '';
+    const d = new Date(str.replace(' ', 'T'));
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60)   return '방금 전';
+    if (diff < 3600) return `${Math.floor(diff/60)}분 전`;
+    if (diff < 86400)return `${Math.floor(diff/3600)}시간 전`;
+    return str.slice(0, 10);
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // 모달 바깥 클릭 닫기
+  document.getElementById('auth-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAuthModal(); });
+  document.getElementById('write-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWriteModal(); });
+
+  // 엔터키
+  ['auth-userid','auth-password'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+  });
+
+  initAuth();
+  loadPosts();
+</script>
+</body>
+</html>

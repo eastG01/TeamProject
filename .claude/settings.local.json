@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import uvicorn\")",
+      "Bash(python -c \"from app.routers import filter_router, admin_router, auth_router; print\\('imports OK'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python init_db.py)",
+      "Bash(python -c \"from app.routers import post_router, comment_router, report_router; print\\('OK'\\)\")"
+    ]
+  }
+}

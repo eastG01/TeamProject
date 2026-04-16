@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게시글</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d27;
+    --surface2: #22263a;
+    --border:   #2e3350;
+    --accent:   #4f8ef7;
+    --accent2:  #7c6af7;
+    --danger:   #f74f6a;
+    --warn:     #f7a94f;
+    --success:  #4ff7a0;
+    --text:     #e8eaf6;
+    --text-sub: #7b82a8;
+  }
+  body.light {
+    --bg:       #f4f6fb;
+    --surface:  #ffffff;
+    --surface2: #eef0f7;
+    --border:   #d0d4e8;
+    --text:     #1a1d27;
+    --text-sub: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; transition: background 0.2s, color 0.2s; }
+
+  /* 헤더 */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 52px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+  .header-logo { width: 26px; height: 26px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .header-title { font-size: 15px; font-weight: 700; cursor: pointer; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .header-user { font-size: 12px; color: var(--text-sub); font-family: 'JetBrains Mono', monospace; }
+  .btn { font-size: 12px; font-family: 'Noto Sans KR', sans-serif; font-weight: 600; padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost   { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-danger  { background: rgba(247,79,106,0.12); color: var(--danger); border: 1px solid rgba(247,79,106,0.25); }
+  .btn-theme   { background: none; border: 1px solid var(--border); color: var(--text-sub); font-size: 14px; width: 32px; height: 32px; padding: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+  /* 컨테이너 */
+  .container { max-width: 780px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* 게시글 */
+  .post-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; margin-bottom: 28px; }
+  .post-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .post-nav a { font-size: 13px; color: var(--text-sub); cursor: pointer; text-decoration: none; }
+  .post-nav a:hover { color: var(--accent); }
+  .post-nav span { font-size: 13px; color: var(--text-sub); }
+  .post-title { font-size: 22px; font-weight: 700; line-height: 1.4; margin-bottom: 14px; letter-spacing: -0.4px; }
+  .post-meta { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .post-author { font-size: 14px; font-weight: 600; }
+  .post-date   { font-size: 12px; color: var(--text-sub); font-family: 'JetBrains Mono', monospace; }
+  .post-actions { margin-left: auto; display: flex; gap: 8px; }
+  .post-content { font-size: 15px; line-height: 1.8; white-space: pre-wrap; }
+  .post-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .post-cmt-count { font-size: 13px; color: var(--text-sub); }
+
+  /* 댓글 섹션 */
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .cmt-count-badge { font-size: 12px; font-family: 'JetBrains Mono', monospace; background: var(--surface2); color: var(--accent); padding: 2px 8px; border-radius: 10px; }
+
+  /* 댓글 입력 */
+  .comment-form { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; transition: border-color 0.2s; }
+  .comment-form:focus-within { border-color: var(--accent); }
+  .form-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+  .my-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--warn), var(--danger)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; padding: 10px 12px; resize: none; outline: none; transition: border-color 0.2s; line-height: 1.6; }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--text-sub); }
+  .form-bottom { display: flex; justify-content: space-between; align-items: center; padding-left: 42px; }
+  .char-count { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-sub); }
+
+  /* 분석 중 */
+  .analyzing-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(79,142,247,0.08); border: 1px solid rgba(79,142,247,0.2); border-radius: 8px; margin: 0 0 12px 42px; font-size: 12px; color: var(--accent); }
+  .analyzing-bar.show { display: flex; }
+  .spinner { width: 12px; height: 12px; border: 2px solid rgba(79,142,247,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  .step { font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 4px; background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); transition: all 0.3s; }
+  .step.active  { background: rgba(79,142,247,0.15); color: var(--accent); border-color: var(--accent); }
+  .step.done    { background: rgba(79,247,160,0.1);  color: var(--success); border-color: var(--success); }
+  .step.blocked { background: rgba(247,79,106,0.1);  color: var(--danger);  border-color: var(--danger); }
+
+  /* 댓글 목록 */
+  .comment-list { display: flex; flex-direction: column; gap: 2px; }
+  .comment-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; animation: fadeIn 0.3s ease; }
+  .comment-item.reply { margin-left: 32px; border-left: 2px solid var(--accent); border-radius: 0 10px 10px 0; }
+  .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cmt-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .cmt-author { font-size: 13px; font-weight: 600; }
+  .cmt-time   { font-size: 11px; color: var(--text-sub); margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+  .cmt-body   { font-size: 14px; line-height: 1.65; padding-left: 34px; color: var(--text); }
+  .cmt-body.deleted { color: var(--text-sub); font-style: italic; }
+  .cmt-footer { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding-left: 34px; }
+  .cmt-action { font-size: 12px; color: var(--text-sub); cursor: pointer; background: none; border: none; font-family: 'Noto Sans KR', sans-serif; display: flex; align-items: center; gap: 4px; transition: color 0.2s; padding: 0; }
+  .cmt-action:hover { color: var(--accent); }
+  .cmt-action.danger:hover { color: var(--danger); }
+
+  /* 필터링 배지 */
+  .filter-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 34px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+  .badge-bad   { background: rgba(247,79,106,0.1); color: var(--danger); border: 1px solid rgba(247,79,106,0.25); }
+  .badge-clean { background: rgba(79,247,160,0.08); color: var(--success); border: 1px solid rgba(79,247,160,0.2); }
+
+  /* 대댓글 입력 폼 (인라인) */
+  .reply-form { margin-left: 32px; margin-top: 4px; background: var(--surface); border: 1px solid var(--accent); border-radius: 0 10px 10px 10px; padding: 12px 14px; display: none; }
+  .reply-form.show { display: block; }
+  .reply-form .form-row { margin-bottom: 8px; }
+  .reply-form .form-bottom { padding-left: 42px; }
+
+  /* 신고 모달 */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 340px; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 18px; }
+  .modal-close { float: right; background: none; border: none; color: var(--text-sub); font-size: 18px; cursor: pointer; }
+  .reason-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .reason-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 14px; text-align: left; cursor: pointer; font-size: 14px; font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s; }
+  .reason-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .modal-error { font-size: 12px; color: var(--danger); min-height: 16px; }
+
+  /* 로그인 모달 */
+  .auth-modal { width: 360px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+  .modal-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; padding: 10px 12px; outline: none; transition: border-color 0.2s; }
+  .modal-field input:focus { border-color: var(--accent); }
+  .modal-submit { width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 600; padding: 11px; margin-top: 8px; }
+  .modal-submit:hover { opacity: 0.88; }
+  .modal-err { font-size: 12px; color: var(--danger); margin-top: 10px; min-height: 18px; text-align: center; }
+  .modal-switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-sub); }
+  .modal-switch a { color: var(--accent); cursor: pointer; font-weight: 600; }
+
+  /* 토스트 */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 13px; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: transform 0.3s; z-index: 1000; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+
+  .avatarColors { display: none; }
+</style>
+</head>
+<body>
+
+<!-- 신고 모달 -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeReportModal()">✕</button>
+    <div class="modal-title">댓글 신고</div>
+    <div class="reason-list">
+      <button class="reason-btn" onclick="submitReport('욕설')">🤬 욕설</button>
+      <button class="reason-btn" onclick="submitReport('스팸')">📢 스팸</button>
+      <button class="reason-btn" onclick="submitReport('음란물')">🔞 음란물</button>
+      <button class="reason-btn" onclick="submitReport('기타')">📌 기타</button>
+    </div>
+    <div class="modal-error" id="report-error"></div>
+  </div>
+</div>
+
+<!-- 로그인 모달 -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal auth-modal">
+    <button class="modal-close" onclick="closeAuthModal()">✕</button>
+    <div class="modal-title" id="auth-title">로그인</div>
+    <div class="modal-field"><label>아이디</label><input type="text" id="auth-userid" placeholder="아이디 입력"></div>
+    <div class="modal-field"><label>비밀번호</label><input type="password" id="auth-password" placeholder="비밀번호 입력"></div>
+    <button class="modal-submit" onclick="handleAuth()" id="auth-submit">로그인</button>
+    <div class="modal-err" id="auth-error"></div>
+    <div class="modal-switch" id="auth-switch">계정이 없으신가요? <a onclick="switchAuthMode()">회원가입</a></div>
+  </div>
+</div>
+
+<!-- 헤더 -->
+<header class="header">
+  <div class="header-logo">🛡</div>
+  <span class="header-title" onclick="location.href='board.html'">CommGuard</span>
+  <div class="header-right">
+    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()">🌙</button>
+    <span class="header-user" id="header-user"></span>
+    <button class="btn btn-primary" id="header-auth-btn" onclick="openAuthModal()">로그인</button>
+  </div>
+</header>
+
+<div class="container" id="main-container">
+  <div style="text-align:center;padding:60px;color:var(--text-sub)">게시글을 불러오는 중...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API      = 'http://127.0.0.1:8000';
+  const POST_ID  = new URLSearchParams(location.search).get('id');
+  let USER_ID    = localStorage.getItem('user_id') || null;
+  let authMode   = 'login';
+  let reportTargetId = null;
+
+  const AVATAR_COLORS = [
+    'linear-gradient(135deg,#4f8ef7,#7c6af7)',
+    'linear-gradient(135deg,#f7a94f,#f74f6a)',
+    'linear-gradient(135deg,#4ff7a0,#4f8ef7)',
+    'linear-gradient(135deg,#f74f6a,#f7a94f)',
+    'linear-gradient(135deg,#7c6af7,#4ff7a0)',
+  ];
+
+  // 테마
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  if (savedTheme === 'light') document.body.classList.add('light');
+  document.getElementById('theme-btn').textContent = savedTheme === 'light' ? '🌞' : '🌙';
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    document.getElementById('theme-btn').textContent = isLight ? '🌞' : '🌙';
+  }
+
+  // 인증
+  function initAuth() {
+    if (USER_ID) {
+      document.getElementById('header-user').textContent = USER_ID;
+      const btn = document.getElementById('header-auth-btn');
+      btn.textContent = '로그아웃'; btn.className = 'btn btn-ghost'; btn.onclick = logout;
+    } else {
+      document.getElementById('header-user').textContent = '';
+      const btn = document.getElementById('header-auth-btn');
+      btn.textContent = '로그인'; btn.className = 'btn btn-primary'; btn.onclick = openAuthModal;
+    }
+  }
+  function logout() { localStorage.removeItem('user_id'); USER_ID = null; initAuth(); showToast('로그아웃 되었습니다.'); }
+
+  function openAuthModal() {
+    authMode = 'login'; updateAuthUI();
+    document.getElementById('auth-userid').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('auth-modal').classList.add('show');
+  }
+  function closeAuthModal() { document.getElementById('auth-modal').classList.remove('show'); }
+  function switchAuthMode() { authMode = authMode === 'login' ? 'register' : 'login'; updateAuthUI(); document.getElementById('auth-error').textContent = ''; }
+  function updateAuthUI() {
+    const isLogin = authMode === 'login';
+    document.getElementById('auth-title').textContent      = isLogin ? '로그인' : '회원가입';
+    document.getElementById('auth-submit').textContent     = isLogin ? '로그인' : '회원가입';
+    document.getElementById('auth-switch').innerHTML       = isLogin
+      ? '계정이 없으신가요? <a onclick="switchAuthMode()">회원가입</a>'
+      : '이미 계정이 있으신가요? <a onclick="switchAuthMode()">로그인</a>';
+  }
+  async function handleAuth() {
+    const userId = document.getElementById('auth-userid').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const errorEl = document.getElementById('auth-error');
+    errorEl.textContent = '';
+    if (!userId || !password) { errorEl.textContent = '아이디와 비밀번호를 입력해주세요.'; return; }
+    try {
+      const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+      const res  = await fetch(API + endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user_id:userId, password}) });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.detail || '오류가 발생했습니다.'; return; }
+      USER_ID = data.user_id;
+      localStorage.setItem('user_id', USER_ID);
+      closeAuthModal(); initAuth();
+      showToast(authMode === 'register' ? '회원가입 완료!' : `${USER_ID}님 환영합니다!`);
+    } catch(e) { errorEl.textContent = '서버에 연결할 수 없습니다.'; }
+  }
+  document.getElementById('auth-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAuthModal(); });
+  ['auth-userid','auth-password'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+  });
+
+  // 신고 모달
+  function openReportModal(commentId) {
+    if (!USER_ID) { openAuthModal(); return; }
+    reportTargetId = commentId;
+    document.getElementById('report-error').textContent = '';
+    document.getElementById('report-modal').classList.add('show');
+  }
+  function closeReportModal() { document.getElementById('report-modal').classList.remove('show'); reportTargetId = null; }
+  document.getElementById('report-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeReportModal(); });
+
+  async function submitReport(reason) {
+    try {
+      const res  = await fetch(API + '/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({reporter_id: USER_ID, comment_id: reportTargetId, reason}) });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('report-error').textContent = data.detail; return; }
+      closeReportModal();
+      showToast('신고가 접수되었습니다.');
+    } catch(e) { document.getElementById('report-error').textContent = '서버에 연결할 수 없습니다.'; }
+  }
+
+  // 게시글 로드
+  async function loadPost() {
+    if (!POST_ID) { location.href = 'board.html'; return; }
+    try {
+      const [postRes, cmtRes] = await Promise.all([
+        fetch(`${API}/posts/${POST_ID}`),
+        fetch(`${API}/posts/${POST_ID}/comments`)
+      ]);
+      if (!postRes.ok) { location.href = 'board.html'; return; }
+      const post     = await postRes.json();
+      const comments = await cmtRes.json();
+      renderPage(post, comments);
+    } catch(e) {
+      document.getElementById('main-container').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-sub)">서버에 연결할 수 없습니다.</div>';
+    }
+  }
+
+  function renderPage(post, comments) {
+    const isMyPost = USER_ID && USER_ID === post.user_id;
+    const avatarColor = AVATAR_COLORS[hashColor(post.user_id)];
+
+    document.title = post.title + ' - CommGuard';
+
+    const tree = buildCommentTree(comments);
+
+    document.getElementById('main-container').innerHTML = `
+      <!-- 게시글 -->
+      <div class="post-card">
+        <div class="post-nav">
+          <a onclick="location.href='board.html'">자유게시판</a>
+          <span>›</span>
+          <span>${escHtml(post.title)}</span>
+        </div>
+        <div class="post-title">${escHtml(post.title)}</div>
+        <div class="post-meta">
+          <div class="avatar" style="background:${avatarColor}">${post.user_id[0].toUpperCase()}</div>
+          <div>
+            <div class="post-author">${escHtml(post.user_id)}</div>
+            <div class="post-date">${formatDate(post.created_at)}</div>
+          </div>
+          ${isMyPost ? `<div class="post-actions"><button class="btn btn-danger" onclick="deletePost()">삭제</button></div>` : ''}
+        </div>
+        <div class="post-content">${escHtml(post.content)}</div>
+        <div class="post-footer">
+          <span class="post-cmt-count">💬 댓글 ${post.comment_count}개</span>
+        </div>
+      </div>
+
+      <!-- 댓글 -->
+      <div class="section-title">
+        댓글 <span class="cmt-count-badge" id="cmt-count-badge">${comments.length}</span>
+      </div>
+
+      <!-- 댓글 입력 -->
+      <div class="comment-form">
+        <div class="form-row">
+          <div class="my-avatar">${USER_ID ? USER_ID[0].toUpperCase() : '?'}</div>
+          <textarea id="cmt-input" rows="3" placeholder="${USER_ID ? '댓글을 입력하세요... (Ctrl+Enter로 등록)' : '로그인 후 댓글을 작성할 수 있습니다.'}" maxlength="500" ${USER_ID ? '' : 'readonly'}></textarea>
+        </div>
+        <div class="analyzing-bar" id="analyzing-bar">
+          <div class="spinner"></div>
+          <span id="step-f2" class="step">F2 정규화</span>
+          <span id="step-f3" class="step">F3 욕설사전</span>
+          <span id="step-f4" class="step">F4 KcBERT</span>
+          <span id="step-f5" class="step">F5 판정</span>
+        </div>
+        <div class="form-bottom">
+          <span class="char-count" id="cmt-char">0 / 500</span>
+          <button class="btn btn-primary" id="cmt-submit" onclick="submitComment(null)">등록</button>
+        </div>
+      </div>
+
+      <!-- 댓글 목록 -->
+      <div class="comment-list" id="comment-list">
+        ${renderCommentTree(tree)}
+      </div>
+    `;
+
+    // 댓글 입력 이벤트
+    const input = document.getElementById('cmt-input');
+    if (input) {
+      input.addEventListener('input', function() {
+        const len = this.value.length;
+        document.getElementById('cmt-char').textContent = `${len} / 500`;
+      });
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) submitComment(null); });
+      if (!USER_ID) {
+        input.addEventListener('focus', function() { this.blur(); openAuthModal(); });
+      }
+    }
+  }
+
+  function buildCommentTree(comments) {
+    const map = {};
+    const roots = [];
+    comments.forEach(c => { map[c.id] = {...c, children: []}; });
+    comments.forEach(c => {
+      if (c.parent_id && map[c.parent_id]) map[c.parent_id].children.push(map[c.id]);
+      else roots.push(map[c.id]);
+    });
+    return roots;
+  }
+
+  function renderCommentTree(nodes, depth = 0) {
+    if (!nodes || nodes.length === 0) return '';
+    return nodes.map(node => renderComment(node, depth)).join('');
+  }
+
+  function renderComment(c, depth) {
+    const isDeleted = c.is_deleted;
+    const isMine    = USER_ID && USER_ID === c.user_id;
+    const color     = AVATAR_COLORS[hashColor(c.user_id)];
+    const indentClass = depth > 0 ? 'reply' : '';
+    // 들여쓰기는 CSS로만, depth 2 이상은 동일하게
+    const marginLeft = depth > 0 ? Math.min(depth, 2) * 32 : 0;
+
+    const bodyHtml = isDeleted
+      ? `<div class="cmt-body deleted">삭제된 댓글입니다.</div>`
+      : `<div class="cmt-body">${escHtml(c.content).replace(/\*\*\*/g, '<span style="color:var(--danger);font-weight:700">***</span>')}</div>
+         ${c.content === '***' ? '<div class="filter-badge badge-bad">⚠ 필터링됨</div>' : ''}`;
+
+    const footerHtml = isDeleted ? '' : `
+      <div class="cmt-footer">
+        ${USER_ID ? `<button class="cmt-action" onclick="toggleReplyForm(${c.id})">↩ 답글</button>` : ''}
+        ${isMine  ? `<button class="cmt-action danger" onclick="deleteComment(${c.id})">🗑 삭제</button>` : ''}
+        ${USER_ID && !isMine ? `<button class="cmt-action danger" onclick="openReportModal(${c.id})">🚩 신고</button>` : ''}
+      </div>
+    `;
+
+    const replyFormHtml = USER_ID ? `
+      <div class="reply-form" id="reply-form-${c.id}">
+        <div class="form-row">
+          <div class="my-avatar" style="font-size:11px">${USER_ID[0].toUpperCase()}</div>
+          <textarea id="reply-input-${c.id}" rows="2" placeholder="답글을 입력하세요..." maxlength="500"></textarea>
+        </div>
+        <div class="form-bottom">
+          <span></span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="toggleReplyForm(${c.id})">취소</button>
+            <button class="btn btn-primary" onclick="submitComment(${c.id})">등록</button>
+          </div>
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <div id="cmt-${c.id}" style="margin-left:${marginLeft}px">
+        <div class="comment-item${depth > 0 ? '' : ''}">
+          <div class="comment-header">
+            <div class="cmt-avatar" style="background:${color}">${c.user_id[0].toUpperCase()}</div>
+            <span class="cmt-author">${escHtml(c.user_id)}</span>
+            ${depth > 0 ? '<span style="font-size:11px;color:var(--accent)">↩</span>' : ''}
+            <span class="cmt-time">${formatDate(c.created_at)}</span>
+          </div>
+          ${bodyHtml}
+          ${footerHtml}
+        </div>
+        ${replyFormHtml}
+        ${renderCommentTree(c.children, depth + 1)}
+      </div>
+    `;
+  }
+
+  function toggleReplyForm(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    if (!form) return;
+    const isShow = form.classList.toggle('show');
+    if (isShow) document.getElementById(`reply-input-${commentId}`)?.focus();
+  }
+
+  // 댓글 등록
+  async function submitComment(parentId) {
+    if (!USER_ID) { openAuthModal(); return; }
+
+    const inputId = parentId ? `reply-input-${parentId}` : 'cmt-input';
+    const input   = document.getElementById(inputId);
+    const text    = input?.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById(parentId ? null : 'cmt-submit');
+    const bar = document.getElementById('analyzing-bar');
+
+    if (!parentId) {
+      if (btn) btn.disabled = true;
+      bar.classList.add('show');
+      resetSteps();
+      setStep('step-f2', 'active');
+      await sleep(300);
+      setStep('step-f2', 'done');
+      setStep('step-f3', 'active');
+      await sleep(200);
+    }
+
+    try {
+      const res  = await fetch(`${API}/posts/${POST_ID}/comments`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: USER_ID, content: text, parent_id: parentId })
+      });
+      const data = await res.json();
+
+      if (!parentId) {
+        if (data.filter_method === '욕설사전') {
+          setStep('step-f3', 'blocked');
+          setStep('step-f4', 'done');
+          setStep('step-f5', 'blocked');
+        } else {
+          setStep('step-f3', 'done');
+          setStep('step-f4', 'active');
+          await sleep(400);
+          setStep('step-f4', 'done');
+          setStep('step-f5', 'active');
+          await sleep(200);
+          setStep('step-f5', data.filter_result === '악플' ? 'blocked' : 'done');
+        }
+        await sleep(200);
+        bar.classList.remove('show');
+        if (btn) btn.disabled = false;
+      }
+
+      if (!res.ok) {
+        showToast(data.detail || '오류가 발생했습니다.');
+        if (!parentId && btn) btn.disabled = false;
+        bar.classList.remove('show');
+        return;
+      }
+
+      input.value = '';
+      if (parentId) toggleReplyForm(parentId);
+
+      if (data.user_status === '차단') {
+        showToast('차단된 계정입니다.');
+        return;
+      }
+
+      if (data.filter_result === '악플') {
+        showToast('욕설이 자동으로 필터링되었습니다.');
+      }
+
+      // 댓글 목록 새로고침
+      const cmtRes = await fetch(`${API}/posts/${POST_ID}/comments`);
+      const comments = await cmtRes.json();
+      const tree = buildCommentTree(comments);
+      document.getElementById('comment-list').innerHTML = renderCommentTree(tree);
+      document.getElementById('cmt-count-badge').textContent = comments.length;
+
+    } catch(e) {
+      showToast('서버에 연결할 수 없습니다.');
+      if (!parentId) { bar.classList.remove('show'); if (btn) btn.disabled = false; }
+    }
+  }
+
+  // 댓글 삭제
+  async function deleteComment(commentId) {
+    if (!confirm('댓글을 삭제하시겠습니까?')) return;
+    try {
+      const res  = await fetch(`${API}/comments/${commentId}?user_id=${encodeURIComponent(USER_ID)}`, { method:'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.detail || '오류가 발생했습니다.'); return; }
+      showToast('댓글이 삭제되었습니다.');
+      const cmtRes  = await fetch(`${API}/posts/${POST_ID}/comments`);
+      const comments = await cmtRes.json();
+      const tree = buildCommentTree(comments);
+      document.getElementById('comment-list').innerHTML = renderCommentTree(tree);
+    } catch(e) { showToast('서버에 연결할 수 없습니다.'); }
+  }
+
+  // 게시글 삭제
+  async function deletePost() {
+    if (!confirm('게시글을 삭제하시겠습니까?')) return;
+    try {
+      const res  = await fetch(`${API}/posts/${POST_ID}?user_id=${encodeURIComponent(USER_ID)}`, { method:'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.detail || '오류가 발생했습니다.'); return; }
+      showToast('게시글이 삭제되었습니다.');
+      setTimeout(() => location.href = 'board.html', 1000);
+    } catch(e) { showToast('서버에 연결할 수 없습니다.'); }
+  }
+
+  // 파이프라인 스텝
+  function setStep(id, state) { const el = document.getElementById(id); if (el) el.className = 'step ' + state; }
+  function resetSteps() { ['step-f2','step-f3','step-f4','step-f5'].forEach(id => { const el = document.getElementById(id); if (el) el.className = 'step'; }); }
+
+  // 유틸
+  function formatDate(str) {
+    if (!str) return '';
+    const d    = new Date(str.replace(' ', 'T'));
+    const now  = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60)    return '방금 전';
+    if (diff < 3600)  return `${Math.floor(diff/60)}분 전`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}시간 전`;
+    return str.slice(0, 10);
+  }
+  function escHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function hashColor(str) { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % AVATAR_COLORS.length; return h; }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+  initAuth();
+  loadPost();
+</script>
+</body>
+</html>

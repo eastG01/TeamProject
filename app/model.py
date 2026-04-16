@@ -15,8 +15,8 @@ def load_model():
     """서버 시작 시 딱 한 번 호출"""
     global _tokenizer, _model
     print("KcBERT 모델 로딩 중...")
-    _tokenizer = AutoTokenizer.from_pretrained("beomi/kcbert-base")
-    _model     = AutoModelForSequenceClassification.from_pretrained("beomi/kcbert-base", num_labels=2)
+    _tokenizer = AutoTokenizer.from_pretrained("my_best_model")
+    _model     = AutoModelForSequenceClassification.from_pretrained("my_best_model")
     _model.eval()
     print("KcBERT 모델 로딩 완료 ✅")
 
