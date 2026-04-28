@@ -185,9 +185,9 @@ def get_logs():
     conn = get_conn()
     try:
         rows = conn.execute("""
-            SELECT id, user_id, original_text, detect_method, 
-                   result, action, created_at 
-            FROM filter_logs 
+            SELECT id, user_id, original_text, detect_method,
+                   ai_score, result, action, created_at
+            FROM filter_logs
             ORDER BY created_at DESC
         """).fetchall()
         return [dict(r) for r in rows]

@@ -184,7 +184,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>ID</th><th>유저</th><th>댓글 내용</th><th>판정</th><th>방법</th><th>날짜</th><th>관리</th></tr>
+          <tr><th>ID</th><th>유저</th><th>댓글 내용</th><th>판정</th><th>AI Score</th><th>방법</th><th>날짜</th><th>관리</th></tr>
         </thead>
         <tbody id="log-tbody"></tbody>
       </table>
@@ -448,6 +448,7 @@ async function loadLogs() {
       <td><span style="font-family:'JetBrains Mono',monospace">${r.user_id}</span></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.original_text}</td>
       <td>${r.result === '악플' ? '<span class="badge badge-red">악플</span>' : '<span class="badge badge-green">정상</span>'}</td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${r.ai_score != null && r.ai_score >= 0.5 ? 'var(--danger)' : 'var(--sub)'}">${r.ai_score != null ? r.ai_score : '-'}</span></td>
       <td><span style="color:var(--sub);font-size:12px">${r.detect_method}</span></td>
       <td><span style="font-size:12px;color:var(--sub)">${(r.created_at||'').slice(0,16)}</span></td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteLog(${r.id})">삭제</button></td>

@@ -75,14 +75,7 @@ def create_comment(post_id: int, body: CommentCreate):
         if filter_result["result"] == "차단된 유저":
             raise HTTPException(status_code=403, detail="차단된 계정입니다.")
 
-        # 욕설사전 악플이면 해당 단어만 ***로 마스킹, KcBERT 악플이면 원문 그대로 표시
-        if filter_result["result"] == "악플" and filter_result["method"] == "욕설사전" and filter_result.get("detected_word"):
-            save_content = body.content.replace(filter_result["detected_word"], "***")
-        else:
-            save_content = body.content.strip()
-        # TODO: KcBERT 악플 마스킹 - 특정 단어 추출 방법 확정 후 구현
-        # if filter_result["result"] == "악플" and filter_result["method"] == "KcBERT":
-        #     save_content = "***"
+        save_content = filter_result.get("final_text") or body.content.strip()
 
         cursor = conn.execute("""
             INSERT INTO comments (post_id, user_id, parent_id, content)
