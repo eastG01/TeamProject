@@ -84,6 +84,7 @@
   <div class="tab" onclick="switchTab('penalties')">유저 제재 <span class="count-badge" id="pe-count">0</span></div>
   <div class="tab" onclick="switchTab('users')">회원 관리 <span class="count-badge" id="us-count">0</span></div>
   <div class="tab" onclick="switchTab('logs')">댓글 로그 <span class="count-badge" id="log-count">0</span></div>
+  <div class="tab" onclick="switchTab('appeals')">이의제기 <span class="count-badge" id="ap-count">0</span></div>
 </div>
 
 <div class="content">
@@ -191,6 +192,23 @@
       <div class="empty" id="log-empty" style="display:none">로그가 없습니다.</div>
     </div>
   </div>
+
+  <!-- 이의제기 -->
+  <div class="panel" id="panel-appeals">
+    <div class="section-header">
+      <span class="section-title">이의제기 관리</span>
+      <button class="btn btn-ghost" onclick="loadAppeals()">새로고침</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>유저</th><th>현재 내용</th><th>원문</th><th>이유</th><th>상태</th><th>날짜</th><th>관리</th></tr>
+        </thead>
+        <tbody id="ap-tbody"></tbody>
+      </table>
+      <div class="empty" id="ap-empty" style="display:none">이의제기가 없습니다.</div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -204,7 +222,7 @@ const _cache = { bw: {}, wl: {}, pe: {} };
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['badwords','whitelist','penalties','users','logs'][i] === name);
+    t.classList.toggle('active', ['badwords','whitelist','penalties','users','logs','appeals'][i] === name);
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -212,6 +230,8 @@ function switchTab(name) {
   if (name === 'whitelist') loadWhitelist();
   if (name === 'penalties') loadPenalties();
   if (name === 'users')     loadUsers();
+  if (name === 'logs')      loadLogs();
+  if (name === 'appeals')   loadAppeals();
 }
 
 function toggleForm(id) {
@@ -464,6 +484,50 @@ async function deleteLog(id) {
   showToast(data.message);
   loadLogs();
 }
+// ── 이의제기 ─────────────────────────────────────────────────────────────────
+async function loadAppeals() {
+  const res = await fetch(`${API}/appeals`).catch(() => null);
+  if (!res) { showToast('서버 연결 실패', 'error'); return; }
+  const data = await res.json();
+  document.getElementById('ap-count').textContent = data.length;
+  document.getElementById('ap-empty').style.display = data.length ? 'none' : 'block';
+  document.getElementById('ap-tbody').innerHTML = data.map(r => `
+    <tr>
+      <td><span style="font-family:'JetBrains Mono',monospace;color:var(--sub)">#${r.id}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace">${r.user_id}</span></td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.content}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--success)">${r.original_content || '-'}</td>
+      <td style="color:var(--sub);font-size:12px">${r.reason}</td>
+      <td>${r.status === '대기' ? '<span class="badge badge-orange">대기</span>' : r.status === '승인' ? '<span class="badge badge-green">승인</span>' : '<span class="badge badge-red">거절</span>'}</td>
+      <td><span style="font-size:12px;color:var(--sub)">${(r.created_at||'').slice(0,16)}</span></td>
+      <td><div class="btn-group">
+        ${r.status === '대기' ? `
+          <button class="btn btn-primary btn-sm" onclick="restoreAppeal(${r.id})">복원</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectAppeal(${r.id})">거절</button>
+        ` : '-'}
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+async function restoreAppeal(id) {
+  if (!confirm(`이의제기 #${id} 를 승인하고 원문으로 복원할까요?\n(화이트리스트에 자동 추가됩니다)`)) return;
+  const res  = await fetch(`${API}/appeals/${id}/restore`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail, 'error'); return; }
+  showToast(data.message);
+  loadAppeals();
+}
+
+async function rejectAppeal(id) {
+  if (!confirm(`이의제기 #${id} 를 거절할까요?`)) return;
+  const res  = await fetch(`${API}/appeals/${id}/reject`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail, 'error'); return; }
+  showToast(data.message);
+  loadAppeals();
+}
+
 // 초기 로드
 loadBadwords();
 </script>

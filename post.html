@@ -147,6 +147,21 @@
 </head>
 <body>
 
+<!-- 이의제기 모달 -->
+<div class="modal-overlay" id="appeal-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAppealModal()">✕</button>
+    <div class="modal-title">이의제기</div>
+    <div class="reason-list">
+      <button class="reason-btn" onclick="submitAppeal('정상적인 표현입니다')">정상적인 표현입니다</button>
+      <button class="reason-btn" onclick="submitAppeal('의학/학술 용어입니다')">의학/학술 용어입니다</button>
+      <button class="reason-btn" onclick="submitAppeal('문맥상 욕설이 아닙니다')">문맥상 욕설이 아닙니다</button>
+      <button class="reason-btn" onclick="submitAppeal('기타')">기타</button>
+    </div>
+    <div class="modal-error" id="appeal-error"></div>
+  </div>
+</div>
+
 <!-- 신고 모달 -->
 <div class="modal-overlay" id="report-modal">
   <div class="modal">
@@ -269,6 +284,34 @@
   ['auth-userid','auth-password'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
   });
+
+  // 이의제기 모달
+  let appealTargetId = null;
+  function openAppealModal(commentId) {
+    if (!USER_ID) { openAuthModal(); return; }
+    appealTargetId = commentId;
+    document.getElementById('appeal-error').textContent = '';
+    document.getElementById('appeal-modal').classList.add('show');
+  }
+  function closeAppealModal() {
+    document.getElementById('appeal-modal').classList.remove('show');
+    appealTargetId = null;
+  }
+  document.getElementById('appeal-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAppealModal(); });
+
+  async function submitAppeal(reason) {
+    try {
+      const res  = await fetch(`${API}/comments/${appealTargetId}/appeal`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: USER_ID, reason })
+      });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('appeal-error').textContent = data.detail; return; }
+      closeAppealModal();
+      showToast('이의제기가 접수되었습니다.');
+    } catch(e) { document.getElementById('appeal-error').textContent = '서버에 연결할 수 없습니다.'; }
+  }
 
   // 신고 모달
   function openReportModal(commentId) {
@@ -411,10 +454,12 @@
       : `<div class="cmt-body">${escHtml(c.content).replace(/\*\*\*/g, '<span style="color:var(--danger);font-weight:700">***</span>')}</div>
          ${c.content === '***' ? '<div class="filter-badge badge-bad">⚠ 필터링됨</div>' : ''}`;
 
+    const isFiltered = c.content && c.content.includes('*');
     const footerHtml = isDeleted ? '' : `
       <div class="cmt-footer">
         ${USER_ID ? `<button class="cmt-action" onclick="toggleReplyForm(${c.id})">↩ 답글</button>` : ''}
         ${isMine  ? `<button class="cmt-action danger" onclick="deleteComment(${c.id})">🗑 삭제</button>` : ''}
+        ${isMine && isFiltered ? `<button class="cmt-action" onclick="openAppealModal(${c.id})" style="color:var(--warn)">⚠ 이의제기</button>` : ''}
         ${USER_ID && !isMine ? `<button class="cmt-action danger" onclick="openReportModal(${c.id})">🚩 신고</button>` : ''}
       </div>
     `;
@@ -470,18 +515,7 @@
     if (!text) return;
 
     const btn = document.getElementById(parentId ? null : 'cmt-submit');
-    const bar = document.getElementById('analyzing-bar');
-
-    if (!parentId) {
-      if (btn) btn.disabled = true;
-      bar.classList.add('show');
-      resetSteps();
-      setStep('step-f2', 'active');
-      await sleep(300);
-      setStep('step-f2', 'done');
-      setStep('step-f3', 'active');
-      await sleep(200);
-    }
+    if (btn) btn.disabled = true;
 
     try {
       const res  = await fetch(`${API}/posts/${POST_ID}/comments`, {
@@ -491,45 +525,17 @@
       });
       const data = await res.json();
 
-      if (!parentId) {
-        if (data.filter_method === '욕설사전') {
-          setStep('step-f3', 'blocked');
-          setStep('step-f4', 'done');
-          setStep('step-f5', 'blocked');
-        } else {
-          setStep('step-f3', 'done');
-          setStep('step-f4', 'active');
-          await sleep(400);
-          setStep('step-f4', 'done');
-          setStep('step-f5', 'active');
-          await sleep(200);
-          setStep('step-f5', data.filter_result === '악플' ? 'blocked' : 'done');
-        }
-        await sleep(200);
-        bar.classList.remove('show');
-        if (btn) btn.disabled = false;
-      }
-
       if (!res.ok) {
         showToast(data.detail || '오류가 발생했습니다.');
-        if (!parentId && btn) btn.disabled = false;
-        bar.classList.remove('show');
+        if (btn) btn.disabled = false;
         return;
       }
 
       input.value = '';
       if (parentId) toggleReplyForm(parentId);
+      if (btn) btn.disabled = false;
 
-      if (data.user_status === '차단') {
-        showToast('차단된 계정입니다.');
-        return;
-      }
-
-      if (data.filter_result === '악플') {
-        showToast('욕설이 자동으로 필터링되었습니다.');
-      }
-
-      // 댓글 목록 새로고침
+      // 댓글 목록 즉시 새로고침
       const cmtRes = await fetch(`${API}/posts/${POST_ID}/comments`);
       const comments = await cmtRes.json();
       const tree = buildCommentTree(comments);
@@ -538,7 +544,7 @@
 
     } catch(e) {
       showToast('서버에 연결할 수 없습니다.');
-      if (!parentId) { bar.classList.remove('show'); if (btn) btn.disabled = false; }
+      if (btn) btn.disabled = false;
     }
   }
 

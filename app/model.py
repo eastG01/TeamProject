@@ -26,7 +26,7 @@ def load_model():
 
 def predict_and_mask(user_input: str):
     if not user_input.strip() or _model is None:
-        return 0.0, user_input
+        return 0.0, user_input, []
 
     inputs = _tokenizer(user_input, return_tensors="pt", truncation=True, padding=True).to(_device)
     with torch.no_grad():
@@ -34,7 +34,7 @@ def predict_and_mask(user_input: str):
         ai_score = torch.softmax(outputs.logits, dim=-1)[0][1].item()
 
     if ai_score < THRESHOLD_HATE:
-        return ai_score, user_input
+        return ai_score, user_input, []
 
     tokens = _tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
     attentions = outputs.attentions[-1][0].mean(dim=0)[0].cpu().detach().numpy()
@@ -44,6 +44,7 @@ def predict_and_mask(user_input: str):
     attn_limit = max(min(np.mean(valid_attn_scores) + np.std(valid_attn_scores), 0.20), 0.12)
 
     final_output = ""
+    masked_words = []
     ptr = 0
     for i in valid_indices:
         clean_t = tokens[i].replace("##", "")
@@ -54,11 +55,17 @@ def predict_and_mask(user_input: str):
 
         is_bad = (attentions[i] > attn_limit and indiv_score >= 0.49) or (indiv_score > THRESHOLD_HATE)
 
+        word_buf = ""
         m_count = 0
         while m_count < len(clean_t) and ptr < len(user_input):
             if user_input[ptr] == " ":
                 final_output += " "; ptr += 1; continue
+            if is_bad:
+                word_buf += user_input[ptr]
             final_output += "*" if is_bad else user_input[ptr]
             m_count += 1; ptr += 1
 
-    return ai_score, final_output + user_input[ptr:]
+        if is_bad and word_buf:
+            masked_words.append(word_buf)
+
+    return ai_score, final_output + user_input[ptr:], masked_words

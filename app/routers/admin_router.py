@@ -205,3 +205,80 @@ def delete_log(log_id: int):
         return {"message": f"댓글 id={log_id} 삭제 완료"}
     finally:
         conn.close()
+
+# 이의제기
+@router.get("/appeals", summary="이의제기 목록 조회")
+def get_appeals():
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT a.id, a.comment_id, a.user_id, a.reason, a.status, a.created_at,
+                   c.content, c.original_content
+            FROM appeals a
+            JOIN comments c ON a.comment_id = c.id
+            ORDER BY a.created_at DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+@router.post("/appeals/{appeal_id}/restore", summary="오탐 복원 및 화이트리스트 추가")
+def restore_appeal(appeal_id: int, add_whitelist: bool = True):
+    conn = get_conn()
+    try:
+        appeal = conn.execute("""
+            SELECT a.*, c.original_content
+            FROM appeals a JOIN comments c ON a.comment_id = c.id
+            WHERE a.id=?
+        """, (appeal_id,)).fetchone()
+        if not appeal:
+            raise HTTPException(status_code=404, detail="이의제기를 찾을 수 없습니다.")
+
+        # 원문으로 복원
+        conn.execute(
+            "UPDATE comments SET content=? WHERE id=?",
+            (appeal["original_content"], appeal["comment_id"])
+        )
+
+        # 이의제기 상태 승인으로 변경
+        conn.execute(
+            "UPDATE appeals SET status='승인', reviewed_at=datetime('now','localtime') WHERE id=?",
+            (appeal_id,)
+        )
+
+        # Feedback loop: 마스킹된 단어 각각 화이트리스트에 추가
+        if add_whitelist:
+            import json
+            row = conn.execute("SELECT masked_words FROM comments WHERE id=?", (appeal["comment_id"],)).fetchone()
+            words = []
+            if row and row["masked_words"]:
+                try:
+                    words = json.loads(row["masked_words"])
+                except:
+                    pass
+            for word in set(words):
+                if word:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO whitelist (word, reason, created_by) VALUES (?, ?, ?)",
+                        (word, f"오탐 복원 자동 추가 (이의제기 #{appeal_id})", "system")
+                    )
+
+        conn.commit()
+        return {"message": f"이의제기 #{appeal_id} 승인 및 원문 복원 완료"}
+    finally:
+        conn.close()
+
+@router.post("/appeals/{appeal_id}/reject", summary="이의제기 거절")
+def reject_appeal(appeal_id: int):
+    conn = get_conn()
+    try:
+        if not conn.execute("SELECT id FROM appeals WHERE id=?", (appeal_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="이의제기를 찾을 수 없습니다.")
+        conn.execute(
+            "UPDATE appeals SET status='거절', reviewed_at=datetime('now','localtime') WHERE id=?",
+            (appeal_id,)
+        )
+        conn.commit()
+        return {"message": f"이의제기 #{appeal_id} 거절 완료"}
+    finally:
+        conn.close()
