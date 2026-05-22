@@ -92,17 +92,38 @@ def init_db():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS comments (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id    INTEGER NOT NULL,
-            user_id    TEXT NOT NULL,
-            parent_id  INTEGER DEFAULT NULL,
-            content    TEXT NOT NULL,
-            is_deleted INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id          INTEGER NOT NULL,
+            user_id          TEXT NOT NULL,
+            parent_id        INTEGER DEFAULT NULL,
+            content          TEXT NOT NULL,
+            original_content TEXT,
+            masked_words     TEXT,
+            is_deleted       INTEGER NOT NULL DEFAULT 0,
+            created_at       TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (post_id)   REFERENCES posts(id),
             FOREIGN KEY (parent_id) REFERENCES comments(id)
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS appeals (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            comment_id   INTEGER NOT NULL,
+            user_id      TEXT NOT NULL,
+            reason       TEXT NOT NULL,
+            status       TEXT NOT NULL DEFAULT '대기',
+            created_at   TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            reviewed_at  TEXT
+        )
+    """)
+
+    # 기존 DB에 컬럼이 없을 경우 추가 (마이그레이션)
+    for col, definition in [("original_content", "TEXT"), ("masked_words", "TEXT")]:
+        try:
+            cursor.execute(f"ALTER TABLE comments ADD COLUMN {col} {definition}")
+        except:
+            pass
 
     sample_badwords = [
         ("시발",  json.dumps(["si발","ㅅㅂ","시*발","씨발"], ensure_ascii=False), 3),
@@ -123,7 +144,7 @@ def init_db():
     conn.commit()
     conn.close()
     print("DB 생성 완료!")
-    print("테이블 생성: badwords / filter_logs / user_penalties / reports / whitelist / users / posts / comments")
+    print("테이블 생성: badwords / filter_logs / user_penalties / reports / whitelist / users / posts / comments / appeals")
 
 if __name__ == "__main__":
     init_db()
