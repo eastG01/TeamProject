@@ -148,7 +148,7 @@ def update_user_penalty(user_id: str) -> dict:
             """, (user_id, warning_count, status, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         else:
             # 기존 유저 → 경고 누적
-            warning_count = row["warning_count"] + 1
+            warning_count = row["warning_count"] 
             status = "차단" if warning_count >= 3 else "경고"
             cursor.execute("""
                 UPDATE user_penalties

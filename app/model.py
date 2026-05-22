@@ -26,42 +26,46 @@ def load_model():
 
 def predict_and_mask(user_input: str):
     if not user_input.strip() or _model is None:
-        return 0.0, user_input
+        return 0.0, user_input, []
 
     inputs = _tokenizer(user_input, return_tensors="pt", truncation=True, padding=True).to(_device)
     with torch.no_grad():
         outputs = _model(**inputs)
         ai_score = torch.softmax(outputs.logits, dim=-1)[0][1].item()
 
-    tokens = _tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-    valid_indices = [i for i, t in enumerate(tokens) if t not in [_tokenizer.cls_token, _tokenizer.sep_token]]
-    clean_tokens = [tokens[i].replace("##", "") for i in valid_indices]
-    
-    all_indiv_scores = []
-    if clean_tokens:
-        batch_inputs = _tokenizer(clean_tokens, return_tensors="pt", padding=True).to(_device)
-        with torch.no_grad():
-            batch_outputs = _model(**batch_inputs)
-            all_indiv_scores = torch.softmax(batch_outputs.logits, dim=-1)[:, 1].cpu().tolist()
+    if ai_score < THRESHOLD_HATE:
+        return ai_score, user_input, []
 
+    tokens = _tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
     attentions = outputs.attentions[-1][0].mean(dim=0)[0].cpu().detach().numpy()
+
+    valid_indices = [i for i, t in enumerate(tokens) if t not in [_tokenizer.cls_token, _tokenizer.sep_token]]
     valid_attn_scores = [attentions[i] for i in valid_indices]
     attn_limit = max(min(np.mean(valid_attn_scores) + np.std(valid_attn_scores), 0.20), 0.12)
 
     final_output = ""
+    masked_words = []
     ptr = 0
-    for idx, i in enumerate(valid_indices):
-        token_score = all_indiv_scores[idx]
+    for i in valid_indices:
         clean_t = tokens[i].replace("##", "")
-        
-        # 마스킹 조건: (어텐션 기반 0.49) OR (단독 0.7 이상)
-        is_bad = (attentions[i] > attn_limit and token_score >= 0.49) or (token_score >= THRESHOLD_HATE)
+        indiv_inputs = _tokenizer(clean_t, return_tensors="pt").to(_device)
+        with torch.no_grad():
+            indiv_outputs = _model(**indiv_inputs)
+            indiv_score = torch.softmax(indiv_outputs.logits, dim=-1)[0][1].item()
 
+        is_bad = (attentions[i] > attn_limit and indiv_score >= 0.49) or (indiv_score > THRESHOLD_HATE)
+
+        word_buf = ""
         m_count = 0
         while m_count < len(clean_t) and ptr < len(user_input):
             if user_input[ptr] == " ":
                 final_output += " "; ptr += 1; continue
+            if is_bad:
+                word_buf += user_input[ptr]
             final_output += "*" if is_bad else user_input[ptr]
             m_count += 1; ptr += 1
 
-    return ai_score, final_output + user_input[ptr:]
+        if is_bad and word_buf:
+            masked_words.append(word_buf)
+
+    return ai_score, final_output + user_input[ptr:], masked_words
