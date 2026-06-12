@@ -45,7 +45,9 @@ def get_comments(post_id: int):
         result = []
         for r in rows:
             item = dict(r)
-            if item["is_deleted"]:
+            if item["is_deleted"] == 2:
+                item["content"] = "신고로 인해 삭제된 댓글입니다."
+            elif item["is_deleted"]:
                 item["content"] = "삭제된 댓글입니다."
             result.append(item)
         return result

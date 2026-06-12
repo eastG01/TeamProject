@@ -282,3 +282,74 @@ def reject_appeal(appeal_id: int):
         return {"message": f"이의제기 #{appeal_id} 거절 완료"}
     finally:
         conn.close()
+
+# 신고
+@router.get("/reports", summary="신고 목록 조회")
+def get_reports():
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT id, reporter_id, target_id, comment_id, comment_text,
+                   reason, status, reviewed_by, created_at, reviewed_at
+            FROM reports
+            ORDER BY created_at DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+@router.post("/reports/{report_id}/valid", summary="신고 정당 처리 (악플 인정)")
+def approve_report(report_id: int):
+    conn = get_conn()
+    try:
+        report = conn.execute("SELECT * FROM reports WHERE id=?", (report_id,)).fetchone()
+        if not report:
+            raise HTTPException(status_code=404, detail="신고를 찾을 수 없습니다.")
+
+        # 댓글 논리 삭제 (신고로 인해 삭제됨, is_deleted=2)
+        if report["comment_id"]:
+            conn.execute(
+                "UPDATE comments SET is_deleted=2 WHERE id=?",
+                (report["comment_id"],)
+            )
+
+        # 작성자 경고 누적
+        target_id = report["target_id"]
+        prow = conn.execute("SELECT warning_count FROM user_penalties WHERE user_id=?", (target_id,)).fetchone()
+        if prow:
+            new_count = prow["warning_count"] + 1
+            new_status = "차단" if new_count >= 3 else "경고"
+            conn.execute(
+                "UPDATE user_penalties SET warning_count=?, status=?, updated_at=datetime('now','localtime') WHERE user_id=?",
+                (new_count, new_status, target_id)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO user_penalties (user_id, warning_count, status, updated_at) VALUES (?, 1, '경고', datetime('now','localtime'))",
+                (target_id,)
+            )
+
+        # 신고 상태 정당 처리
+        conn.execute(
+            "UPDATE reports SET status='정당', reviewed_at=datetime('now','localtime') WHERE id=?",
+            (report_id,)
+        )
+        conn.commit()
+        return {"message": f"신고 #{report_id} 정당 처리 완료 (댓글 삭제 및 경고 누적)"}
+    finally:
+        conn.close()
+
+@router.post("/reports/{report_id}/invalid", summary="신고 무효 처리 (정상 댓글)")
+def reject_report(report_id: int):
+    conn = get_conn()
+    try:
+        if not conn.execute("SELECT id FROM reports WHERE id=?", (report_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="신고를 찾을 수 없습니다.")
+        conn.execute(
+            "UPDATE reports SET status='무효', reviewed_at=datetime('now','localtime') WHERE id=?",
+            (report_id,)
+        )
+        conn.commit()
+        return {"message": f"신고 #{report_id} 무효 처리 완료"}
+    finally:
+        conn.close()

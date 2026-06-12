@@ -50,6 +50,7 @@ def init_db():
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             reporter_id   TEXT NOT NULL,
             target_id     TEXT NOT NULL,
+            comment_id    INTEGER,
             comment_text  TEXT NOT NULL,
             reason        TEXT NOT NULL,
             report_count  INTEGER NOT NULL DEFAULT 1,
@@ -59,6 +60,12 @@ def init_db():
             reviewed_at   TEXT
         )
     """)
+
+    # 기존 DB에 comment_id 컬럼이 없을 경우 추가
+    try:
+        cursor.execute("ALTER TABLE reports ADD COLUMN comment_id INTEGER")
+    except:
+        pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS whitelist (

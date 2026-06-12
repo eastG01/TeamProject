@@ -45,15 +45,15 @@ def create_report(body: ReportCreate):
         # 중복 신고 확인 (1인 1신고)
         existing = conn.execute("""
             SELECT id FROM reports
-            WHERE reporter_id=? AND comment_text=? AND target_id=?
-        """, (body.reporter_id, comment["content"], comment["user_id"])).fetchone()
+            WHERE reporter_id=? AND comment_id=?
+        """, (body.reporter_id, body.comment_id)).fetchone()
         if existing:
             raise HTTPException(status_code=400, detail="이미 신고한 댓글입니다.")
 
         conn.execute("""
-            INSERT INTO reports (reporter_id, target_id, comment_text, reason)
-            VALUES (?, ?, ?, ?)
-        """, (body.reporter_id, comment["user_id"], comment["content"], body.reason))
+            INSERT INTO reports (reporter_id, target_id, comment_id, comment_text, reason)
+            VALUES (?, ?, ?, ?, ?)
+        """, (body.reporter_id, comment["user_id"], body.comment_id, comment["content"], body.reason))
         conn.commit()
         return {"message": "신고가 접수되었습니다."}
     finally:

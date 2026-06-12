@@ -450,7 +450,7 @@
     const marginLeft = depth > 0 ? Math.min(depth, 2) * 32 : 0;
 
     const bodyHtml = isDeleted
-      ? `<div class="cmt-body deleted">삭제된 댓글입니다.</div>`
+      ? `<div class="cmt-body deleted">${escHtml(c.content)}</div>`
       : `<div class="cmt-body">${escHtml(c.content).replace(/\*\*\*/g, '<span style="color:var(--danger);font-weight:700">***</span>')}</div>
          ${c.content === '***' ? '<div class="filter-badge badge-bad">⚠ 필터링됨</div>' : ''}`;
 

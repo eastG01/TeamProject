@@ -85,6 +85,7 @@
   <div class="tab" onclick="switchTab('users')">회원 관리 <span class="count-badge" id="us-count">0</span></div>
   <div class="tab" onclick="switchTab('logs')">댓글 로그 <span class="count-badge" id="log-count">0</span></div>
   <div class="tab" onclick="switchTab('appeals')">이의제기 <span class="count-badge" id="ap-count">0</span></div>
+  <div class="tab" onclick="switchTab('reports')">신고 관리 <span class="count-badge" id="rp-count">0</span></div>
 </div>
 
 <div class="content">
@@ -209,6 +210,23 @@
       <div class="empty" id="ap-empty" style="display:none">이의제기가 없습니다.</div>
     </div>
   </div>
+
+  <!-- 신고 관리 -->
+  <div class="panel" id="panel-reports">
+    <div class="section-header">
+      <span class="section-title">신고 관리</span>
+      <button class="btn btn-ghost" onclick="loadReports()">새로고침</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>신고자</th><th>대상</th><th>댓글 내용</th><th>사유</th><th>상태</th><th>날짜</th><th>관리</th></tr>
+        </thead>
+        <tbody id="rp-tbody"></tbody>
+      </table>
+      <div class="empty" id="rp-empty" style="display:none">신고 내역이 없습니다.</div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -222,7 +240,7 @@ const _cache = { bw: {}, wl: {}, pe: {} };
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['badwords','whitelist','penalties','users','logs','appeals'][i] === name);
+    t.classList.toggle('active', ['badwords','whitelist','penalties','users','logs','appeals','reports'][i] === name);
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -232,6 +250,7 @@ function switchTab(name) {
   if (name === 'users')     loadUsers();
   if (name === 'logs')      loadLogs();
   if (name === 'appeals')   loadAppeals();
+  if (name === 'reports')   loadReports();
 }
 
 function toggleForm(id) {
@@ -526,6 +545,50 @@ async function rejectAppeal(id) {
   if (!res.ok) { showToast(data.detail, 'error'); return; }
   showToast(data.message);
   loadAppeals();
+}
+
+// ── 신고 관리 ─────────────────────────────────────────────────────────────────
+async function loadReports() {
+  const res = await fetch(`${API}/reports`).catch(() => null);
+  if (!res) { showToast('서버 연결 실패', 'error'); return; }
+  const data = await res.json();
+  document.getElementById('rp-count').textContent = data.length;
+  document.getElementById('rp-empty').style.display = data.length ? 'none' : 'block';
+  document.getElementById('rp-tbody').innerHTML = data.map(r => `
+    <tr>
+      <td><span style="font-family:'JetBrains Mono',monospace;color:var(--sub)">#${r.id}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace">${r.reporter_id}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace">${r.target_id}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment_text}</td>
+      <td style="color:var(--sub);font-size:12px">${r.reason}</td>
+      <td>${r.status === '대기' ? '<span class="badge badge-orange">대기</span>' : r.status === '정당' ? '<span class="badge badge-red">정당</span>' : '<span class="badge badge-green">무효</span>'}</td>
+      <td><span style="font-size:12px;color:var(--sub)">${(r.created_at||'').slice(0,16)}</span></td>
+      <td><div class="btn-group">
+        ${r.status === '대기' ? `
+          <button class="btn btn-danger btn-sm" onclick="approveReport(${r.id})">정당</button>
+          <button class="btn btn-primary btn-sm" onclick="invalidReport(${r.id})">무효</button>
+        ` : '-'}
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+async function approveReport(id) {
+  if (!confirm(`신고 #${id} 를 정당 처리할까요?\n(댓글이 삭제되고 작성자에게 경고가 누적됩니다)`)) return;
+  const res  = await fetch(`${API}/reports/${id}/valid`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail, 'error'); return; }
+  showToast(data.message);
+  loadReports();
+}
+
+async function invalidReport(id) {
+  if (!confirm(`신고 #${id} 를 무효 처리할까요?`)) return;
+  const res  = await fetch(`${API}/reports/${id}/invalid`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail, 'error'); return; }
+  showToast(data.message);
+  loadReports();
 }
 
 // 초기 로드
